@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flask-SocketIO Demo (Horizontally Resizable)</title>
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    #loadingSpinner {
+      display: none; /* hidden by default */
+      margin-left: 10px;
+      color: green;
+      font-weight: bold;
+    }
+    #uploadedList {
+      margin-top: 20px;
+    }
+    .upload-item {
+      margin-bottom: 10px;
+    }
+    .delete-button {
+      margin-left: 10px;
+      color: #fff;
+      background-color: red;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .delete-button:hover {
+      background-color: darkred;
+    }
+    .container {
+      display: flex;       /* Put two boxes side by side */
+      gap: 1rem;           /* Space between boxes */
+      /* If you don't want them to overlap on resize, allow wrapping: */
+      /* flex-wrap: wrap; */
+    }
+    .box {
+      /* Fixed height so we can scroll vertically inside */
+      height: 300px;       
+      /* Start with a default width (it can be resized larger/smaller) */
+      width: 800px;
+      min-width: 150px;    /* Don’t let it shrink to zero */
+      
+      resize:both;  /* Key: allows horizontal resizing handle */
+      overflow: auto;      /* Make content scroll inside */
+      border: 1px solid #ccc;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .stderr-box {
+      border-color: #fcc; /* A different border color for stderr */
+      color:crimson;     /* A different text color for stderr */
+    }
+    h2 {
+      color: black;
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Flask-SocketIO Demo</h1>
+  <span id="gpuStats" style="font-size: 16px; margin-left: 20px; color: #666;">
+    (GPU: Loading...)
+  </span>
+
+  <div class="container">
+    <!-- STDOUT box -->
+    <div class="box" id="stdoutBox">
+      <h2>STDOUT</h2>
+      <div id="stdoutContent"></div>
+    </div>
+
+    <!-- STDERR box -->
+    <div class="box stderr-box" id="stderrBox">
+      <h2>STDERR</h2>
+      <div id="stderrContent"></div>
+    </div>
+  </div>
+  <!-- File input and button to upload -->
+  <input type="file" id="lasFile" accept=".las" />
+  <button id="uploadButton">Upload .LAS File</button>
+
+  <!-- Simple loading spinner (text-based) -->
+  <span id="loadingSpinner">Uploading...</span>
+
+  <!-- List of uploaded files -->
+  <div id="uploadedList"></div>
+
+  <script>
+    // Create the Socket.IO client
+    const socket = io();
+
+    // Debug messages to ensure socket is connecting
+    socket.on('connect', () => {
+      console.log("[Socket.IO] Connected!");
+    });
+    socket.on('connect_error', (err) => {
+      console.error("[Socket.IO] connect_error:", err);
+    });
+
+    // Listen for output from the server's stdout
+    socket.on("stdout", (msg) => {
+      const stdoutEl = document.getElementById("stdoutContent");
+      stdoutEl.innerHTML += msg.data + "<br>";
+      // Auto-scroll to bottom:
+      const stdoutBox = document.getElementById("stdoutBox");
+        stdoutBox.scrollTop = stdoutBox.scrollHeight;
+
+      console.log("[STDOUT]", msg.data);
+    });
+
+    // Listen for output from the server's stderr
+    socket.on("stderr", (msg) => {
+      const stderrEl = document.getElementById("stderrContent");
+      stderrEl.innerHTML += msg.data + "<br>";
+      // Auto-scroll to bottom:
+      stderrEl.scrollTop = stderrEl.scrollHeight;
+      console.error("[STDERR]", msg.data);
+    });
+    // Optionally, if you need your Socket.IO features, you can instantiate it:
+    //   const socket = io();
+    // but for file upload, we'll just use fetch/XHR.
+    // GPU stats polling
+    setInterval(fetchGpuStats, 500); // every .5 seconds
+    fetchGpuStats(); // fetch on page load
+
+    function fetchGpuStats() {
+      fetch('/gpu_stats')
+        .then(resp => resp.json())
+        .then(data => {
+          const gpuStatsEl = document.getElementById('gpuStats');
+          if (!data || data.length === 0) {
+            gpuStatsEl.textContent = '(No GPUs found)';
+            return;
+          }
+          // If multiple GPUs, just show the first or combine them:
+          // For example, let's show the first GPU:
+          const gpu = data[0];
+          gpuStatsEl.textContent = `(GPU${gpu.id}: ${gpu.load}% load, ${gpu.memUtil}% mem, ${gpu.temperature}°C)`;
+        })
+        .catch(err => {
+          document.getElementById('gpuStats').textContent = '(GPU error: ' + err + ')';
+        });
+    }
+
+    const lasFileInput = document.getElementById('lasFile');
+    const uploadButton = document.getElementById('uploadButton');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const uploadedList = document.getElementById('uploadedList');
+
+    uploadButton.addEventListener('click', () => {
+      const file = lasFileInput.files[0];
+      if (!file) {
+        alert('Please select a .las file first.');
+        return;
+      }
+
+      // Show loading spinner
+      loadingSpinner.style.display = 'inline';
+
+      // Use FormData to send file via fetch
+      const formData = new FormData();
+      formData.append('lasfile', file);
+
+      fetch('/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Hide loading spinner
+        loadingSpinner.style.display = 'none';
+
+        if (data.success) {
+          // Add an entry to the uploaded list
+          addUploadedItem(data.uuid, data.filename);
+        } else {
+          alert('Upload failed: ' + data.error);
+        }
+      })
+      .catch(err => {
+        loadingSpinner.style.display = 'none';
+        alert('Upload error: ' + err.message);
+      });
+    });
+
+function addUploadedItem(uniqueId, filename) {
+  const itemDiv = document.createElement('div');
+  itemDiv.className = 'upload-item';
+  itemDiv.textContent = `Uploaded: ${filename}`;
+
+  // Delete button
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'delete-button';
+  deleteBtn.textContent = 'Delete';
+  deleteBtn.addEventListener('click', () => {
+    deleteFile(uniqueId, itemDiv);
+  });
+
+  // Process button
+  const processBtn = document.createElement('button');
+  processBtn.className = 'submit-button';
+  processBtn.textContent = 'Process';
+  processBtn.addEventListener('click', () => {
+    // Immediately disable this button and show "Processing..."
+    processBtn.disabled = true;
+    processBtn.textContent = 'Processing...';
+
+    submitFile(uniqueId, filename);
+  });
+
+  itemDiv.appendChild(deleteBtn);
+  itemDiv.appendChild(processBtn);
+  uploadedList.appendChild(itemDiv);
+}
+
+    function deleteFile(uniqueId, itemDiv) {
+      // You can use either POST or DELETE
+      fetch(`/delete/${uniqueId}`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Remove item from DOM
+            uploadedList.removeChild(itemDiv);
+          } else {
+            alert('Delete failed: ' + data.error);
+          }
+        })
+        .catch(err => {
+          alert('Delete error: ' + err.message);
+        });
+    }
+
+    function submitFile(uniqueId, filename) {
+      socket.emit('start_process', {
+        uuid: uniqueId,
+        filename: filename
+      })
+      console.log(`Submitting file for processing: ${uniqueId}/${filename}`);
+
+    }
+  </script>
+  <!-- A new container/box for the file listing -->
+<div style="margin-top: 30px;">
+    <h2>Uploads Directory</h2>
+    <!-- A resizable box for the directory listing -->
+    <div id="uploadsBox" style="
+         width: 800px; 
+         height: 300px; 
+         border: 1px solid #ccc; 
+         resize: both; 
+         overflow: auto; 
+         padding: 10px;
+         box-sizing: border-box;">
+      <pre id="uploadsContent">Loading...</pre>
+    </div>
+  </div>
+  <script>
+    // Poll every 5 seconds (5000 ms)
+    setInterval(fetchUploadsListing, 5000); // too often?
+  
+    function fetchUploadsListing() {
+      fetch('/list_uploads')
+        .then(response => response.json())
+        .then(data => {
+          if (!data.uploads) {
+            document.getElementById('uploadsContent').textContent = "No uploads found.";
+            return;
+          }
+  
+          // We'll build a simple text dump of the JSON structure:
+          let text = '';
+          for (let entry of data.uploads) {
+            text += `Path: ${entry.path}\n`;
+            text += `  Subdirectories: [${entry.subdirs.join(', ')}]\n`;
+            text += `  Files: [${entry.files.join(', ')}]\n\n`;
+          }
+  
+          document.getElementById('uploadsContent').textContent = text;
+        })
+        .catch(err => {
+          document.getElementById('uploadsContent').textContent = "Error listing uploads: " + err;
+        });
+    }
+  
+    // Immediately fetch the listing on page load
+    fetchUploadsListing();
+  </script>
+  
+</body>
+</html>
