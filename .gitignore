@@ -40,3 +40,8 @@ Frontend/build/
 # OS-specific
 .DS_Store
 Thumbs.db
+
+
+# Frontend upload directories
+Frontend/uploads/
+Frontend/uploads/*
