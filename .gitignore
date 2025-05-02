@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.env/
+.venv/
+env/
+venv/
+ENV/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Datasets - not versioned
+FSCT/data/train/
+FSCT/data/test/
+FSCT/data/validation/
+
+# Python packaging
+*.egg-info/
+build/
+dist/
+
+# Readme images (assume optional, add back if needed)
+# FSCT/readme_images/
+
+# Frontend build artifacts & dependencies
+Frontend/node_modules/
+Frontend/dist/
+Frontend/build/
+
+# OS-specific
+.DS_Store
+Thumbs.db
