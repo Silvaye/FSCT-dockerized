@@ -1,7 +1,7 @@
 #taken in part from https://github.com/SmartForest-no/Point2tree
 
 # NVIDIA-CUDA as base image
-FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu20.04
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu20.04
 
 # Set environment variables
 ENV UBUNTU_VER=20.04
@@ -28,10 +28,16 @@ RUN apt update && apt install -y \
     $HOME/miniconda/bin/conda clean -ya
 
 # Install dependencies
-RUN conda install pytorch torchvision pytorch-cuda=12.4 pyg pytorch-cluster -c pytorch -c nvidia -c pyg -y
+RUN conda install pytorch torchvision pytorch-cuda=12.8 pyg pytorch-cluster -c pytorch -c nvidia -c pyg -y
 
 RUN pip install pandas matplotlib scikit-learn laspy hdbscan scikit-image scikit-spatial mdutils markdown flask flask-socketio eventlet GPUtil
 
 # Set default environment and PATH
 ENV CONDA_DEFAULT_ENV=FSCT
 ENV PATH="$HOME/miniconda/envs/FSCT/bin:$PATH"
+
+# Set out working dir
+WORKDIR /forest_tool
+
+# Copy the project files into the container
+COPY . /forest_tool

@@ -46,9 +46,10 @@ Next, restart the docker daemon:
 ```bash
 sudo systemctl restart docker
 ```
+
 An important note: **We are not using rootless here. Do not put any confidential information in this container. I recommend that you utilize the `--rm` command when starting your container so that the container is deleted after you run it.**
 
-# Creating the Docker Image
+## Creating the Docker Image
 
 Navigate to the folder containing this file in your WSL terminal. Run the following command:
 
@@ -58,11 +59,12 @@ docker build -t fsct .
 
 This will build your docker image. This may take up some time and space. Be aware.
 
-# Initialize Container
+## Initialize Container
 
 The command I use is as follows:
+
 ```bash
-docker run --rm --gpus all -v $(pwd):/forest_tool -it fsct
+docker run --rm --gpus all -it fsct
 ```
 
 This command will does the following:
@@ -70,7 +72,6 @@ This command will does the following:
 - `docker run` - create new container
 - `--rm` - delete container after we exit it
 - `--gpus all` - gives us access to our gpus in the container
-- `-v $(pwd):/forest_tool` - mount the current folder at the `/forest_tool` directory
 - `-i` - runs the container in interactive mode
 - `-t fsct` - use the image with the tag/name 'fsct'
 
