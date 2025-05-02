@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Flask-SocketIO Demo (Horizontally Resizable)</title>
@@ -11,18 +12,23 @@
       font-family: sans-serif;
       margin: 20px;
     }
+
     #loadingSpinner {
-      display: none; /* hidden by default */
+      display: none;
+      /* hidden by default */
       margin-left: 10px;
       color: green;
       font-weight: bold;
     }
+
     #uploadedList {
       margin-top: 20px;
     }
+
     .upload-item {
       margin-bottom: 10px;
     }
+
     .delete-button {
       margin-left: 10px;
       color: #fff;
@@ -31,38 +37,51 @@
       padding: 5px 10px;
       cursor: pointer;
     }
+
     .delete-button:hover {
       background-color: darkred;
     }
+
     .container {
-      display: flex;       /* Put two boxes side by side */
-      gap: 1rem;           /* Space between boxes */
+      display: flex;
+      /* Put two boxes side by side */
+      gap: 1rem;
+      /* Space between boxes */
       /* If you don't want them to overlap on resize, allow wrapping: */
       /* flex-wrap: wrap; */
     }
+
     .box {
       /* Fixed height so we can scroll vertically inside */
-      height: 300px;       
+      height: 300px;
       /* Start with a default width (it can be resized larger/smaller) */
       width: 800px;
-      min-width: 150px;    /* Don’t let it shrink to zero */
-      
-      resize:both;  /* Key: allows horizontal resizing handle */
-      overflow: auto;      /* Make content scroll inside */
+      min-width: 150px;
+      /* Don’t let it shrink to zero */
+
+      resize: both;
+      /* Key: allows horizontal resizing handle */
+      overflow: auto;
+      /* Make content scroll inside */
       border: 1px solid #ccc;
       padding: 10px;
       box-sizing: border-box;
     }
+
     .stderr-box {
-      border-color: #fcc; /* A different border color for stderr */
-      color:crimson;     /* A different text color for stderr */
+      border-color: #fcc;
+      /* A different border color for stderr */
+      color: crimson;
+      /* A different text color for stderr */
     }
+
     h2 {
       color: black;
       margin-top: 0;
     }
   </style>
 </head>
+
 <body>
   <h1>Flask-SocketIO Demo</h1>
   <span id="gpuStats" style="font-size: 16px; margin-left: 20px; color: #666;">
@@ -110,7 +129,7 @@
       stdoutEl.innerHTML += msg.data + "<br>";
       // Auto-scroll to bottom:
       const stdoutBox = document.getElementById("stdoutBox");
-        stdoutBox.scrollTop = stdoutBox.scrollHeight;
+      stdoutBox.scrollTop = stdoutBox.scrollHeight;
 
       console.log("[STDOUT]", msg.data);
     });
@@ -172,53 +191,53 @@
         method: 'POST',
         body: formData
       })
-      .then(response => response.json())
-      .then(data => {
-        // Hide loading spinner
-        loadingSpinner.style.display = 'none';
+        .then(response => response.json())
+        .then(data => {
+          // Hide loading spinner
+          loadingSpinner.style.display = 'none';
 
-        if (data.success) {
-          // Add an entry to the uploaded list
-          addUploadedItem(data.uuid, data.filename);
-        } else {
-          alert('Upload failed: ' + data.error);
-        }
-      })
-      .catch(err => {
-        loadingSpinner.style.display = 'none';
-        alert('Upload error: ' + err.message);
-      });
+          if (data.success) {
+            // Add an entry to the uploaded list
+            addUploadedItem(data.uuid, data.filename);
+          } else {
+            alert('Upload failed: ' + data.error);
+          }
+        })
+        .catch(err => {
+          loadingSpinner.style.display = 'none';
+          alert('Upload error: ' + err.message);
+        });
     });
 
-function addUploadedItem(uniqueId, filename) {
-  const itemDiv = document.createElement('div');
-  itemDiv.className = 'upload-item';
-  itemDiv.textContent = `Uploaded: ${filename}`;
+    function addUploadedItem(uniqueId, filename) {
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'upload-item';
+      itemDiv.textContent = `Uploaded: ${filename}`;
 
-  // Delete button
-  const deleteBtn = document.createElement('button');
-  deleteBtn.className = 'delete-button';
-  deleteBtn.textContent = 'Delete';
-  deleteBtn.addEventListener('click', () => {
-    deleteFile(uniqueId, itemDiv);
-  });
+      // Delete button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-button';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', () => {
+        deleteFile(uniqueId, itemDiv);
+      });
 
-  // Process button
-  const processBtn = document.createElement('button');
-  processBtn.className = 'submit-button';
-  processBtn.textContent = 'Process';
-  processBtn.addEventListener('click', () => {
-    // Immediately disable this button and show "Processing..."
-    processBtn.disabled = true;
-    processBtn.textContent = 'Processing...';
+      // Process button
+      const processBtn = document.createElement('button');
+      processBtn.className = 'submit-button';
+      processBtn.textContent = 'Process';
+      processBtn.addEventListener('click', () => {
+        // Immediately disable this button and show "Processing..."
+        processBtn.disabled = true;
+        processBtn.textContent = 'Processing...';
 
-    submitFile(uniqueId, filename);
-  });
+        submitFile(uniqueId, filename);
+      });
 
-  itemDiv.appendChild(deleteBtn);
-  itemDiv.appendChild(processBtn);
-  uploadedList.appendChild(itemDiv);
-}
+      itemDiv.appendChild(deleteBtn);
+      itemDiv.appendChild(processBtn);
+      uploadedList.appendChild(itemDiv);
+    }
 
     function deleteFile(uniqueId, itemDiv) {
       // You can use either POST or DELETE
@@ -247,10 +266,11 @@ function addUploadedItem(uniqueId, filename) {
     }
   </script>
   <!-- A new container/box for the file listing -->
-<div style="margin-top: 30px;">
-    <h2>Uploads Directory</h2>
-    <!-- A resizable box for the directory listing -->
-    <div id="uploadsBox" style="
+  <div style="display:flex; flex-direction:row; justify-content:space-between; align-items:center; margin-top: 20px;">
+    <div style="margin-top: 30px;">
+      <h2>Uploads Directory</h2>
+      <!-- A resizable box for the directory listing -->
+      <div id="uploadsBox" style="
          width: 800px; 
          height: 300px; 
          border: 1px solid #ccc; 
@@ -258,13 +278,39 @@ function addUploadedItem(uniqueId, filename) {
          overflow: auto; 
          padding: 10px;
          box-sizing: border-box;">
-      <pre id="uploadsContent">Loading...</pre>
+        <pre id="uploadsContent">Loading...</pre>
+      </div>
     </div>
+    <div style="margin-top: 30px;">
+      <h2>Point Cloud Viewer</h2>
+      <div style="margin-bottom: 10px;">
+        <label for="fileDropdown">Choose a file to render:</label>
+        <select id="fileDropdown" style="min-width: 400px;">
+          <option value="">(Select a .pcd or .json file)</option>
+        </select>
+        <button id="refreshButton">Refresh</button>
+        <button id="renderButton">Render</button>
+      </div>
+
+      <div id="webglBox" style="
+      width: 800px;
+      height: 600px;
+      border: 1px solid #ccc;
+      resize: both;
+      overflow: hidden;
+      padding: 0;
+      box-sizing: border-box;
+      position: relative;">
+        <canvas id="webglCanvas" width="800" height="600" style="width: 100%; height: 100%; display: block;"></canvas>
+      </div>
+    </div>
+
+
   </div>
   <script>
     // Poll every 5 seconds (5000 ms)
     setInterval(fetchUploadsListing, 5000); // too often?
-  
+
     function fetchUploadsListing() {
       fetch('/list_uploads')
         .then(response => response.json())
@@ -273,7 +319,7 @@ function addUploadedItem(uniqueId, filename) {
             document.getElementById('uploadsContent').textContent = "No uploads found.";
             return;
           }
-  
+
           // We'll build a simple text dump of the JSON structure:
           let text = '';
           for (let entry of data.uploads) {
@@ -281,17 +327,102 @@ function addUploadedItem(uniqueId, filename) {
             text += `  Subdirectories: [${entry.subdirs.join(', ')}]\n`;
             text += `  Files: [${entry.files.join(', ')}]\n\n`;
           }
-  
+
           document.getElementById('uploadsContent').textContent = text;
         })
         .catch(err => {
           document.getElementById('uploadsContent').textContent = "Error listing uploads: " + err;
         });
     }
-  
+
     // Immediately fetch the listing on page load
     fetchUploadsListing();
   </script>
+
+  <script>
+    const canvas = document.getElementById('webglCanvas');
+    const gl = canvas.getContext('webgl');
+
+    if (!gl) {
+      alert('WebGL not supported!');
+    }
+
+    // Resize canvas to match container size
+    function resizeCanvasToDisplaySize() {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    }
+
+    function render() {
+      resizeCanvasToDisplaySize();
+      gl.clearColor(0.1, 0.1, 0.1, 1.0); // dark background
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      requestAnimationFrame(render);
+    }
+
+    render();
+  </script>
+
+<script>
+  const fileDropdown = document.getElementById('fileDropdown');
+  const refreshButton = document.getElementById('refreshButton');
+  const renderButton = document.getElementById('renderButton');
   
+  // Refresh dropdown with available files
+  refreshButton.addEventListener('click', async () => {
+    try {
+      const response = await fetch('/list_uploads');
+      const data = await response.json();
+  
+      fileDropdown.innerHTML = '<option value="">(Select a .pcd or .json file)</option>';
+  
+      for (const entry of data.uploads) {
+        const basePath = entry.path;
+        for (const file of entry.files) {
+          if (file.endsWith('.las') || file.endsWith('.json')) {
+            const relPath = `${basePath}/${file}`;
+            const option = document.createElement('option');
+            option.value = relPath;
+            option.textContent = relPath;
+            fileDropdown.appendChild(option);
+          }
+        }
+      }
+    } catch (err) {
+      alert("Failed to load file list: " + err.message);
+    }
+  });
+  
+  // Trigger fetch and render
+  renderButton.addEventListener('click', () => {
+    const selectedPath = fileDropdown.value;
+    if (!selectedPath) {
+      alert("Please select a file to render.");
+      return;
+    }
+  
+    fetch(`/${selectedPath}`)
+      .then(resp => {
+        if (!resp.ok) throw new Error(`Server responded with ${resp.status}`);
+        return resp.json();
+      })
+      .then(points => {
+        console.log(`Loaded ${points.length} points from ${selectedPath}`);
+        renderPointCloud(points); // You’ll define this
+      })
+      .catch(err => {
+        alert("Failed to load file: " + err.message);
+      });
+  });
+  </script>
+  
+
+
 </body>
+
 </html>

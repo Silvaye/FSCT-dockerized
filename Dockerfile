@@ -1,43 +1,26 @@
-#taken in part from https://github.com/SmartForest-no/Point2tree
+# Use older CUDA base image to ensure PYG compatibility - 
+FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
 
-# NVIDIA-CUDA as base image
-FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu20.04
-
-# Set environment variables
-ENV UBUNTU_VER=20.04
-ENV CONDA_VER=latest
-ENV OS_TYPE=x86_64
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME="/root"
-ENV PATH="$HOME/miniconda/bin:$PATH"
 
-# Install dependencies and Miniconda
+# Install base dependencies
 SHELL ["/bin/bash", "-c"]
 RUN apt update && apt install -y \
     curl \
     wget \
     gcc \
-    bzip2 && \
-    mkdir conda_installation && cd conda_installation && \
-    curl -LO https://repo.anaconda.com/miniconda/Miniconda3-${CONDA_VER}-Linux-${OS_TYPE}.sh && \
-    bash Miniconda3-${CONDA_VER}-Linux-${OS_TYPE}.sh -b -p $HOME/miniconda && \
-    rm Miniconda3-${CONDA_VER}-Linux-${OS_TYPE}.sh && \
-    $HOME/miniconda/bin/conda init && \
-    $HOME/miniconda/bin/conda config --set auto_activate_base true && \
-    $HOME/miniconda/bin/conda update -n base -c defaults conda && \
-    $HOME/miniconda/bin/conda clean -ya
+    python3 \
+    python3-pip \
+    python3-venv && \
+    ln -s /usr/bin/python3 /usr/bin/python
 
-# Install dependencies
-RUN conda install pytorch torchvision pytorch-cuda=12.8 pyg pytorch-cluster -c pytorch -c nvidia -c pyg -y
+# Install pip deps
+# Install torch(CUDA 12.6 by default)
+RUN pip install --break-system-packages torch torchvision torchaudio
+RUN pip install --break-system-packages torch_geometric
+RUN pip install --break-system-packages pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.6.0+cu126.html
+RUN pip install --break-system-packages pandas matplotlib scikit-learn laspy hdbscan scikit-image scikit-spatial mdutils markdown flask flask-socketio eventlet GPUtil
 
-RUN pip install pandas matplotlib scikit-learn laspy hdbscan scikit-image scikit-spatial mdutils markdown flask flask-socketio eventlet GPUtil
-
-# Set default environment and PATH
-ENV CONDA_DEFAULT_ENV=FSCT
-ENV PATH="$HOME/miniconda/envs/FSCT/bin:$PATH"
-
-# Set out working dir
 WORKDIR /forest_tool
-
-# Copy the project files into the container
 COPY . /forest_tool
