@@ -2,6 +2,10 @@
 
 This is Silvaye's local, unoptomized version of FSCT made to run with an easy web GUI.
 
+FSCT-Dockerized is comprised of a Dockerfile containing instructions for Docker on building the container, in addition to FSCT, a ML-based point cloud analysis tool, and a simple HTTP HTML/CSS/JS based front-end.
+
+FSCT-Dockerized is deployed seperately, on Github's Container Registry Service.
+
 ## Acknowledgements
 
 This code is really just a wrapper for Sean Krisanski's fantastic **FSCT** project. The citation and github for the project can be found below:
