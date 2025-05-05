@@ -28,3 +28,11 @@ export function initUploader({ inputId, buttonId, spinnerId, listContainer, onSu
     });
   }
   
+export function submitFile(uniqueId, filename, socket) {
+    socket.emit('start_process', {
+      uuid: uniqueId,
+      filename: filename
+    })
+    console.log(`Submitting file for processing: ${uniqueId}/${filename}`);
+
+  }

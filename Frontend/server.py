@@ -203,7 +203,7 @@ def handle_start_process(data):
         socketio.emit('stderr', {'data': f'Error: File not found ({file_path}).'})
         return
 
-    # Run 'cat' on the uploaded file
+    # Run FSCT
     process = subprocess.Popen(
         ["python", "-u", "scripts/run.py", full_file_path],
         stdout=subprocess.PIPE,

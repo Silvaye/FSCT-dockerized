@@ -7,21 +7,22 @@
   <!-- Socket.IO client -->
   <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 
-  <!-- ParseLAS -->
   <script type="module">
     import { setupSocket } from './modules/socket.js';
     import { startGpuStatsPolling } from './modules/gpu_stats.js';
-    import { initUploader } from './modules/uploader.js';
+    import { initUploader, submitFile } from './modules/uploader.js';
     import { fetchUploadsListing } from './modules/uploads_list.js';
     import { setupViewer } from './modules/viewer.js';
 
     const socket = setupSocket(
       data => {
+        console.log("Data received:", data);
         const el = document.getElementById("stdoutContent");
         el.innerHTML += data + "<br>";
         el.scrollTop = el.scrollHeight;
       },
       data => {
+        console.log("Error received:", data);
         const el = document.getElementById("stderrContent");
         el.innerHTML += data + "<br>";
         el.scrollTop = el.scrollHeight;
@@ -44,9 +45,33 @@
       spinnerId: 'loadingSpinner',
       listContainer: document.getElementById('uploadedList'),
       onSuccess: (uuid, filename) => {
-        const item = document.createElement('div');
-        item.textContent = `Uploaded: ${filename}`;
-        document.getElementById('uploadedList').appendChild(item);
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'upload-item';
+        itemDiv.textContent = `Uploaded: ${ filename }`;
+
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-button';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', () => {
+          deleteFile(uuid, itemDiv);
+        });
+
+        // Process button
+        const processBtn = document.createElement('button');
+        processBtn.className = 'submit-button';
+        processBtn.textContent = 'Process';
+        processBtn.addEventListener('click', () => {
+          // Immediately disable this button and show "Processing..."
+          processBtn.disabled = true;
+          processBtn.textContent = 'Processing...';
+
+          submitFile(uuid, filename, socket);
+        });
+
+        itemDiv.appendChild(deleteBtn);
+        itemDiv.appendChild(processBtn);
+        uploadedList.appendChild(itemDiv);
       }
     });
 
@@ -149,7 +174,7 @@
 </head>
 
 <body>
-  <h1>Flask-SocketIO Demo</h1>
+  <h1>FSCT-Dockerized</h1>
   <span id="gpuStats" style="font-size: 16px; margin-left: 20px; color: #666;">
     (GPU: Loading...)
   </span>

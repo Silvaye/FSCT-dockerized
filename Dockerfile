@@ -22,5 +22,7 @@ RUN pip install --break-system-packages torch_geometric
 RUN pip install --break-system-packages pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.6.0+cu126.html
 RUN pip install --break-system-packages pandas matplotlib scikit-learn laspy hdbscan scikit-image scikit-spatial mdutils markdown flask flask-socketio eventlet GPUtil
 
+EXPOSE 5000
+
 WORKDIR /forest_tool
 COPY . /forest_tool
