@@ -6,7 +6,7 @@ import os
 import GPUtil
 import uuid
 import shutil
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_socketio import SocketIO
 
 app = Flask(__name__)
@@ -37,6 +37,19 @@ signal.signal(signal.SIGINT, handle_sigint)
 @app.route('/')
 def index():
     return render_template('index.html')
+
+# JS Modules
+@app.route('/modules/<path:filename>', methods=['GET'])
+def modules(filename):
+    safe_base = os.path.abspath('./templates/modules')
+    requested_path = os.path.abspath(os.path.join('./templates/modules/', filename))
+    
+    if not requested_path.startswith(safe_base):
+        return jsonify({"error": "Unauthorized access"}), 403
+
+    directory = os.path.dirname(requested_path)
+    file = os.path.basename(requested_path)
+    return send_from_directory(directory, file)
 
 @app.route('/gpu_stats', methods=['GET'])
 def gpu_stats():
@@ -127,6 +140,19 @@ def list_uploads():
 
     return jsonify({"uploads": uploads_info})
 
+@app.route('/uploads/<path:filename>', methods=['GET'])
+def serve_uploaded_file(filename):
+    safe_base = os.path.abspath(UPLOAD_FOLDER)
+    requested_path = os.path.abspath(os.path.join(UPLOAD_FOLDER, filename))
+    
+    if not requested_path.startswith(safe_base):
+        return jsonify({"error": "Unauthorized access"}), 403
+
+    directory = os.path.dirname(requested_path)
+    file = os.path.basename(requested_path)
+    return send_from_directory(directory, file)
+
+
 @app.route('/delete/<unique_id>', methods=['POST', 'DELETE'])
 def delete_file(unique_id):
     """
@@ -157,7 +183,6 @@ def stream_output(pipe, event_name):
 def handle_start_process(data):
     """
     Called when the client emits 'start_process' with { "uuid":..., "filename":... }.
-    We'll 'cat' the uploaded .las file to demonstrate streaming.
     """
     print("Starting process...")
 

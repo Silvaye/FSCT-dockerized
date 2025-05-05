@@ -7,6 +7,9 @@
   <!-- Socket.IO client -->
   <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 
+  <!-- ParseLAS -->
+   <script src="./modules/las_parser.js"></script>
+
   <style>
     body {
       font-family: sans-serif;
@@ -286,7 +289,7 @@
       <div style="margin-bottom: 10px;">
         <label for="fileDropdown">Choose a file to render:</label>
         <select id="fileDropdown" style="min-width: 400px;">
-          <option value="">(Select a .pcd or .json file)</option>
+          <option value="">(Select a .las file)</option>
         </select>
         <button id="refreshButton">Refresh</button>
         <button id="renderButton">Render</button>
@@ -369,6 +372,7 @@
   </script>
 
 <script>
+
   const fileDropdown = document.getElementById('fileDropdown');
   const refreshButton = document.getElementById('refreshButton');
   const renderButton = document.getElementById('renderButton');
@@ -399,26 +403,29 @@
   });
   
   // Trigger fetch and render
-  renderButton.addEventListener('click', () => {
-    const selectedPath = fileDropdown.value;
-    if (!selectedPath) {
-      alert("Please select a file to render.");
-      return;
-    }
-  
-    fetch(`/${selectedPath}`)
-      .then(resp => {
-        if (!resp.ok) throw new Error(`Server responded with ${resp.status}`);
-        return resp.json();
-      })
-      .then(points => {
-        console.log(`Loaded ${points.length} points from ${selectedPath}`);
-        renderPointCloud(points); // You’ll define this
-      })
-      .catch(err => {
-        alert("Failed to load file: " + err.message);
-      });
-  });
+  renderButton.addEventListener('click', async () => {
+  const selectedPath = fileDropdown.value;
+  if (!selectedPath) {
+    alert("Please select a file to render.");
+    return;
+  }
+
+  try {
+    const resp = await fetch(`/${selectedPath}`);
+    if (!resp.ok) throw new Error(`Server responded with ${resp.status}`);
+    const buffer = await resp.arrayBuffer();
+
+    // parseLAS comes from your las_parser.js
+    const { header, points } = parseLAS(buffer);
+    console.log(`Parsed ${points.length} points (format ${header.pointDataFormat}).`);
+
+    // now hand the raw point data to your WebGL renderer
+    renderPointCloud(points);
+  } catch (err) {
+    alert("Failed to load or parse file: " + err.message);
+  }
+});
+
   </script>
   
 
