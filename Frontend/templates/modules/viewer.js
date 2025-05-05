@@ -424,7 +424,7 @@ export function setupViewer({ dropdownId, refreshBtnId, renderBtnId, canvasId })
     colorSelect.innerHTML = ''; // clear existing options
 
     // Always include special modes
-    const defaultOptions = ['rgb', 'intensity', 'classification'];
+    const defaultOptions = ['rgb'];
     for (const mode of defaultOptions) {
       const opt = document.createElement('option');
       opt.value = mode;
