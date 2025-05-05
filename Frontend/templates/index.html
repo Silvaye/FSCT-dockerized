@@ -11,7 +11,7 @@
     import { setupSocket } from './modules/socket.js';
     import { startGpuStatsSocket } from './modules/gpu_stats.js';
     import { initUploader, submitFile } from './modules/uploader.js';
-    import { fetchUploadsListing } from './modules/uploads_list.js';
+    import { setupUploadsSocket } from './modules/uploads_list.js';
     import { setupViewer } from './modules/viewer.js';
 
     const socket = setupSocket(
@@ -82,19 +82,16 @@
       canvasId: 'glCanvas'
     });
 
-    // Optional: auto-refresh listing
-    setInterval(() => {
-      fetchUploadsListing(data => {
-        const el = document.getElementById("uploadsContent");
-        if (!data || !data.uploads) {
-          el.textContent = "No uploads.";
-        } else {
-          el.textContent = data.uploads.map(
-            u => `Path: ${u.path}\n  Subdirs: ${u.subdirs.join(', ')}\n  Files: ${u.files.join(', ')}\n`
-          ).join('\n');
-        }
-      });
-    }, 5000);
+    setupUploadsSocket(socket, data => {
+      const el = document.getElementById("uploadsContent");
+      if (!data || !data.uploads) {
+        el.textContent = "No uploads.";
+      } else {
+        el.textContent = data.uploads.map(
+          u => `Path: ${u.path}\n  Subdirs: ${u.subdirs.join(', ')}\n  Files: ${u.files.join(', ')}\n`
+        ).join('\n');
+      }
+    });
   </script>
 
 
@@ -237,7 +234,7 @@
         <select id="fileDropdown" style="min-width: 400px;">
           <option value="">(Select a .las file)</option>
         </select>
-        <button id="refreshButton">Refresh</button>
+        <button id="refreshButton">&#x21bb;</button>
         <button id="renderButton">Render</button>
         <button id="resetBtn">Reset View</button>
       </div>

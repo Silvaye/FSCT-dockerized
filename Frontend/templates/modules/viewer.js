@@ -352,6 +352,8 @@ export function setupViewer({ dropdownId, refreshBtnId, renderBtnId, canvasId })
 
   // ——— UI hooks ———
   refreshBtn.addEventListener('click', async () => {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = "Loading...";
     const res = await fetch('/list_uploads');
     const data = await res.json();
     dropdown.innerHTML = '<option value="">(Select a file)</option>';
@@ -366,6 +368,8 @@ export function setupViewer({ dropdownId, refreshBtnId, renderBtnId, canvasId })
         }
       }
     }
+    refreshBtn.disabled = false;
+    refreshBtn.innerHTML = "&#x21bb;"; // refresh icon
   });
 
   renderBtn.addEventListener('click', async () => {

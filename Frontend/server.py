@@ -123,6 +123,12 @@ def upload_file():
         'filename': file.filename
     })
 
+# Socket implementation of uploads list
+@socketio.on('request_uploads_list')
+def handle_uploads_list():
+    data = list_uploads()  # Your existing logic to generate listing
+    socketio.emit('uploads_list', data)
+
 @app.route('/list_uploads', methods=['GET'])
 def list_uploads():
     """
@@ -150,7 +156,7 @@ def list_uploads():
             "files": sorted(files)
         })
 
-    return jsonify({"uploads": uploads_info})
+    return {"uploads": uploads_info}
 
 @app.route('/uploads/<path:filename>', methods=['GET'])
 def serve_uploaded_file(filename):
