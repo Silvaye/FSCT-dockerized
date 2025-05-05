@@ -8,7 +8,70 @@
   <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 
   <!-- ParseLAS -->
-   <script src="./modules/las_parser.js"></script>
+  <script type="module">
+    import { setupSocket } from './modules/socket.js';
+    import { startGpuStatsPolling } from './modules/gpu_stats.js';
+    import { initUploader } from './modules/uploader.js';
+    import { fetchUploadsListing } from './modules/uploads_list.js';
+    import { setupViewer } from './modules/viewer.js';
+
+    const socket = setupSocket(
+      data => {
+        const el = document.getElementById("stdoutContent");
+        el.innerHTML += data + "<br>";
+        el.scrollTop = el.scrollHeight;
+      },
+      data => {
+        const el = document.getElementById("stderrContent");
+        el.innerHTML += data + "<br>";
+        el.scrollTop = el.scrollHeight;
+      }
+    );
+
+    startGpuStatsPolling((data, err) => {
+      const el = document.getElementById("gpuStats");
+      if (err || !data || data.length === 0) {
+        el.textContent = "(GPU error)";
+      } else {
+        const gpu = data[0];
+        el.textContent = `(GPU${gpu.id}: ${gpu.load}% load, ${gpu.memUtil}% mem, ${gpu.temperature}°C)`;
+      }
+    });
+
+    initUploader({
+      inputId: 'lasFile',
+      buttonId: 'uploadButton',
+      spinnerId: 'loadingSpinner',
+      listContainer: document.getElementById('uploadedList'),
+      onSuccess: (uuid, filename) => {
+        const item = document.createElement('div');
+        item.textContent = `Uploaded: ${filename}`;
+        document.getElementById('uploadedList').appendChild(item);
+      }
+    });
+
+    setupViewer({
+      dropdownId: 'fileDropdown',
+      refreshBtnId: 'refreshButton',
+      renderBtnId: 'renderButton',
+      canvasId: 'webglCanvas'
+    });
+
+    // Optional: auto-refresh listing
+    setInterval(() => {
+      fetchUploadsListing(data => {
+        const el = document.getElementById("uploadsContent");
+        if (!data || !data.uploads) {
+          el.textContent = "No uploads.";
+        } else {
+          el.textContent = data.uploads.map(
+            u => `Path: ${u.path}\n  Subdirs: ${u.subdirs.join(', ')}\n  Files: ${u.files.join(', ')}\n`
+          ).join('\n');
+        }
+      });
+    }, 5000);
+  </script>
+
 
   <style>
     body {
@@ -114,160 +177,6 @@
   <!-- List of uploaded files -->
   <div id="uploadedList"></div>
 
-  <script>
-    // Create the Socket.IO client
-    const socket = io();
-
-    // Debug messages to ensure socket is connecting
-    socket.on('connect', () => {
-      console.log("[Socket.IO] Connected!");
-    });
-    socket.on('connect_error', (err) => {
-      console.error("[Socket.IO] connect_error:", err);
-    });
-
-    // Listen for output from the server's stdout
-    socket.on("stdout", (msg) => {
-      const stdoutEl = document.getElementById("stdoutContent");
-      stdoutEl.innerHTML += msg.data + "<br>";
-      // Auto-scroll to bottom:
-      const stdoutBox = document.getElementById("stdoutBox");
-      stdoutBox.scrollTop = stdoutBox.scrollHeight;
-
-      console.log("[STDOUT]", msg.data);
-    });
-
-    // Listen for output from the server's stderr
-    socket.on("stderr", (msg) => {
-      const stderrEl = document.getElementById("stderrContent");
-      stderrEl.innerHTML += msg.data + "<br>";
-      // Auto-scroll to bottom:
-      stderrEl.scrollTop = stderrEl.scrollHeight;
-      console.error("[STDERR]", msg.data);
-    });
-    // Optionally, if you need your Socket.IO features, you can instantiate it:
-    //   const socket = io();
-    // but for file upload, we'll just use fetch/XHR.
-    // GPU stats polling
-    setInterval(fetchGpuStats, 500); // every .5 seconds
-    fetchGpuStats(); // fetch on page load
-
-    function fetchGpuStats() {
-      fetch('/gpu_stats')
-        .then(resp => resp.json())
-        .then(data => {
-          const gpuStatsEl = document.getElementById('gpuStats');
-          if (!data || data.length === 0) {
-            gpuStatsEl.textContent = '(No GPUs found)';
-            return;
-          }
-          // If multiple GPUs, just show the first or combine them:
-          // For example, let's show the first GPU:
-          const gpu = data[0];
-          gpuStatsEl.textContent = `(GPU${gpu.id}: ${gpu.load}% load, ${gpu.memUtil}% mem, ${gpu.temperature}°C)`;
-        })
-        .catch(err => {
-          document.getElementById('gpuStats').textContent = '(GPU error: ' + err + ')';
-        });
-    }
-
-    const lasFileInput = document.getElementById('lasFile');
-    const uploadButton = document.getElementById('uploadButton');
-    const loadingSpinner = document.getElementById('loadingSpinner');
-    const uploadedList = document.getElementById('uploadedList');
-
-    uploadButton.addEventListener('click', () => {
-      const file = lasFileInput.files[0];
-      if (!file) {
-        alert('Please select a .las file first.');
-        return;
-      }
-
-      // Show loading spinner
-      loadingSpinner.style.display = 'inline';
-
-      // Use FormData to send file via fetch
-      const formData = new FormData();
-      formData.append('lasfile', file);
-
-      fetch('/upload', {
-        method: 'POST',
-        body: formData
-      })
-        .then(response => response.json())
-        .then(data => {
-          // Hide loading spinner
-          loadingSpinner.style.display = 'none';
-
-          if (data.success) {
-            // Add an entry to the uploaded list
-            addUploadedItem(data.uuid, data.filename);
-          } else {
-            alert('Upload failed: ' + data.error);
-          }
-        })
-        .catch(err => {
-          loadingSpinner.style.display = 'none';
-          alert('Upload error: ' + err.message);
-        });
-    });
-
-    function addUploadedItem(uniqueId, filename) {
-      const itemDiv = document.createElement('div');
-      itemDiv.className = 'upload-item';
-      itemDiv.textContent = `Uploaded: ${filename}`;
-
-      // Delete button
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'delete-button';
-      deleteBtn.textContent = 'Delete';
-      deleteBtn.addEventListener('click', () => {
-        deleteFile(uniqueId, itemDiv);
-      });
-
-      // Process button
-      const processBtn = document.createElement('button');
-      processBtn.className = 'submit-button';
-      processBtn.textContent = 'Process';
-      processBtn.addEventListener('click', () => {
-        // Immediately disable this button and show "Processing..."
-        processBtn.disabled = true;
-        processBtn.textContent = 'Processing...';
-
-        submitFile(uniqueId, filename);
-      });
-
-      itemDiv.appendChild(deleteBtn);
-      itemDiv.appendChild(processBtn);
-      uploadedList.appendChild(itemDiv);
-    }
-
-    function deleteFile(uniqueId, itemDiv) {
-      // You can use either POST or DELETE
-      fetch(`/delete/${uniqueId}`, { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            // Remove item from DOM
-            uploadedList.removeChild(itemDiv);
-          } else {
-            alert('Delete failed: ' + data.error);
-          }
-        })
-        .catch(err => {
-          alert('Delete error: ' + err.message);
-        });
-    }
-
-    function submitFile(uniqueId, filename) {
-      socket.emit('start_process', {
-        uuid: uniqueId,
-        filename: filename
-      })
-      console.log(`Submitting file for processing: ${uniqueId}/${filename}`);
-
-    }
-  </script>
   <!-- A new container/box for the file listing -->
   <div style="display:flex; flex-direction:row; justify-content:space-between; align-items:center; margin-top: 20px;">
     <div style="margin-top: 30px;">
@@ -310,124 +219,7 @@
 
 
   </div>
-  <script>
-    // Poll every 5 seconds (5000 ms)
-    setInterval(fetchUploadsListing, 5000); // too often?
 
-    function fetchUploadsListing() {
-      fetch('/list_uploads')
-        .then(response => response.json())
-        .then(data => {
-          if (!data.uploads) {
-            document.getElementById('uploadsContent').textContent = "No uploads found.";
-            return;
-          }
-
-          // We'll build a simple text dump of the JSON structure:
-          let text = '';
-          for (let entry of data.uploads) {
-            text += `Path: ${entry.path}\n`;
-            text += `  Subdirectories: [${entry.subdirs.join(', ')}]\n`;
-            text += `  Files: [${entry.files.join(', ')}]\n\n`;
-          }
-
-          document.getElementById('uploadsContent').textContent = text;
-        })
-        .catch(err => {
-          document.getElementById('uploadsContent').textContent = "Error listing uploads: " + err;
-        });
-    }
-
-    // Immediately fetch the listing on page load
-    fetchUploadsListing();
-  </script>
-
-  <script>
-    const canvas = document.getElementById('webglCanvas');
-    const gl = canvas.getContext('webgl');
-
-    if (!gl) {
-      alert('WebGL not supported!');
-    }
-
-    // Resize canvas to match container size
-    function resizeCanvasToDisplaySize() {
-      const width = canvas.clientWidth;
-      const height = canvas.clientHeight;
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
-      gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-    }
-
-    function render() {
-      resizeCanvasToDisplaySize();
-      gl.clearColor(0.1, 0.1, 0.1, 1.0); // dark background
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      requestAnimationFrame(render);
-    }
-
-    render();
-  </script>
-
-<script>
-
-  const fileDropdown = document.getElementById('fileDropdown');
-  const refreshButton = document.getElementById('refreshButton');
-  const renderButton = document.getElementById('renderButton');
-  
-  // Refresh dropdown with available files
-  refreshButton.addEventListener('click', async () => {
-    try {
-      const response = await fetch('/list_uploads');
-      const data = await response.json();
-  
-      fileDropdown.innerHTML = '<option value="">(Select a .pcd or .json file)</option>';
-  
-      for (const entry of data.uploads) {
-        const basePath = entry.path;
-        for (const file of entry.files) {
-          if (file.endsWith('.las') || file.endsWith('.json')) {
-            const relPath = `${basePath}/${file}`;
-            const option = document.createElement('option');
-            option.value = relPath;
-            option.textContent = relPath;
-            fileDropdown.appendChild(option);
-          }
-        }
-      }
-    } catch (err) {
-      alert("Failed to load file list: " + err.message);
-    }
-  });
-  
-  // Trigger fetch and render
-  renderButton.addEventListener('click', async () => {
-  const selectedPath = fileDropdown.value;
-  if (!selectedPath) {
-    alert("Please select a file to render.");
-    return;
-  }
-
-  try {
-    const resp = await fetch(`/${selectedPath}`);
-    if (!resp.ok) throw new Error(`Server responded with ${resp.status}`);
-    const buffer = await resp.arrayBuffer();
-
-    // parseLAS comes from your las_parser.js
-    const { header, points } = parseLAS(buffer);
-    console.log(`Parsed ${points.length} points (format ${header.pointDataFormat}).`);
-
-    // now hand the raw point data to your WebGL renderer
-    renderPointCloud(points);
-  } catch (err) {
-    alert("Failed to load or parse file: " + err.message);
-  }
-});
-
-  </script>
-  
 
 
 </body>

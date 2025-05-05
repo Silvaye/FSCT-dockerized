@@ -12,7 +12,7 @@
 *   points: Array<{x: number, y: number, z: number, r: number|null, g: number|null, b: number|null}>
 * }}
 */
-function parseLAS(buffer) {
+export function parseLAS(buffer) {
  const view = new DataView(buffer);
  const le = true; // LAS is little-endian
 
@@ -96,5 +96,3 @@ function parseLAS(buffer) {
    points: pts
  };
 }
-
-window.parseLAS = parseLAS;
