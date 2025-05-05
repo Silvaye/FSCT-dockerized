@@ -3,6 +3,7 @@ import threading
 import signal
 import sys
 import os
+import time
 import GPUtil
 import uuid
 import shutil
@@ -51,7 +52,6 @@ def modules(filename):
     file = os.path.basename(requested_path)
     return send_from_directory(directory, file)
 
-@app.route('/gpu_stats', methods=['GET'])
 def gpu_stats():
     """
     Returns a list of dictionaries, one per GPU, containing usage stats:
@@ -77,7 +77,19 @@ def gpu_stats():
             "memUtil": round(gpu.memoryUtil * 100, 1),  # Memory usage %
             "temperature": gpu.temperature
         })
-    return jsonify(stats)
+    return stats
+
+def gpu_stats_emitter(sid):
+    while True:
+        stats = gpu_stats()  # Replace with your function
+        socketio.emit('gpu_stats', stats, to=sid)
+        time.sleep(0.5)
+
+@socketio.on('start_gpu_stats')
+def handle_start_gpu_stats():
+    sid = request.sid
+    thread = threading.Thread(target=gpu_stats_emitter, args=(sid,))
+    thread.start()
 
 @app.route('/upload', methods=['POST'])
 def upload_file():

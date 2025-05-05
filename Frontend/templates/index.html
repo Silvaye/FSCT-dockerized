@@ -9,7 +9,7 @@
 
   <script type="module">
     import { setupSocket } from './modules/socket.js';
-    import { startGpuStatsPolling } from './modules/gpu_stats.js';
+    import { startGpuStatsSocket } from './modules/gpu_stats.js';
     import { initUploader, submitFile } from './modules/uploader.js';
     import { fetchUploadsListing } from './modules/uploads_list.js';
     import { setupViewer } from './modules/viewer.js';
@@ -29,7 +29,7 @@
       }
     );
 
-    startGpuStatsPolling((data, err) => {
+    startGpuStatsSocket((data, err) => {
       const el = document.getElementById("gpuStats");
       if (err || !data || data.length === 0) {
         el.textContent = "(GPU error)";
@@ -47,7 +47,7 @@
       onSuccess: (uuid, filename) => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'upload-item';
-        itemDiv.textContent = `Uploaded: ${ filename }`;
+        itemDiv.textContent = `Uploaded: ${filename}`;
 
         // Delete button
         const deleteBtn = document.createElement('button');
@@ -79,7 +79,7 @@
       dropdownId: 'fileDropdown',
       refreshBtnId: 'refreshButton',
       renderBtnId: 'renderButton',
-      canvasId: 'webglCanvas'
+      canvasId: 'glCanvas'
     });
 
     // Optional: auto-refresh listing
@@ -238,7 +238,8 @@
       padding: 0;
       box-sizing: border-box;
       position: relative;">
-        <canvas id="webglCanvas" width="800" height="600" style="width: 100%; height: 100%; display: block;"></canvas>
+        <canvas id="glCanvas" width="800" height="600" style="width: 100%; height: 100%; display: block;"></canvas>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"></script>
       </div>
     </div>
 
