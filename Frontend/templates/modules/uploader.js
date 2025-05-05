@@ -36,3 +36,21 @@ export function submitFile(uniqueId, filename, socket) {
     console.log(`Submitting file for processing: ${uniqueId}/${filename}`);
 
   }
+
+  export function deleteFile(uniqueId, itemDiv){
+    // Send to /delete/<unique_id>
+    fetch(`/delete/${uniqueId}`, {
+      method: 'DELETE'
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          itemDiv.remove();
+        } else {
+          alert('Delete failed: ' + data.error);
+        }
+      })
+      .catch(err => {
+        alert('Delete error: ' + err.message);
+      });
+  }

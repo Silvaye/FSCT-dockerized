@@ -182,6 +182,43 @@ export function parseLAS(buffer) {
 
 
   const fields = FORMATS[pointDataFormat];
+  // 1. Dynamically parse Extra Bytes VLR if present
+  const extraBytesVLR = vlrs.find(vlr =>
+    vlr.userId.trim() === 'LASF_Spec' && vlr.recordId === 4
+  );
+
+  const extraFields = [];
+
+  let currentOffset = Math.max(...fields.map(f => f.offset + (f.type?.startsWith('float') ? 4 : 2)));
+
+  if (extraBytesVLR) {
+    const recordLen = 192;
+    for (let i = 0; i < extraBytesVLR.data.byteLength; i += recordLen) {
+      const slice = new DataView(extraBytesVLR.data.buffer, extraBytesVLR.data.byteOffset + i, recordLen);
+
+      const nameBytes = new Uint8Array(extraBytesVLR.data.buffer, extraBytesVLR.data.byteOffset + i + 4, 32);  // start at byte 4
+      const name = new TextDecoder().decode(nameBytes).replace(/\0+$/, '');
+
+      const dataType = slice.getUint8(2);  // correct offset for data type
+
+      const typeMap = {
+        1: 'uint8', 2: 'int8', 3: 'uint16', 4: 'int16',
+        5: 'uint32', 6: 'int32', 9: 'float32', 10: 'float64'
+      };
+      const type = typeMap[dataType];
+      const sizeMap = {
+        'uint8': 1, 'int8': 1, 'uint16': 2, 'int16': 2,
+        'uint32': 4, 'int32': 4, 'float32': 4, 'float64': 8
+      };
+      const size = sizeMap[type];
+      if (type && name && name.trim().length > 0) {
+        extraFields.push({ name, type, offset: currentOffset });
+        currentOffset += size;
+      }
+    }
+  }
+
+
   if (!fields) throw new Error(`Unsupported PDRF ${pointDataFormat}`);
 
   // --- 4) Generic type-reader map ---
@@ -198,7 +235,7 @@ export function parseLAS(buffer) {
   };
 
   // --- 5) Walk points ---
-  const fieldsUsed = fields//.concat(extraFields); - add if we want to interpret EBVLRs
+  const fieldsUsed = fields.concat(extraFields);
   const output = {};
 
   // 1. Pre-allocate typed arrays for each field
@@ -214,14 +251,14 @@ export function parseLAS(buffer) {
       float32: Float32Array,
       float64: Float64Array
     }[f.type];
-  
+
     if (!dtype) {
       throw new Error(`Unsupported field type: ${f.type}`);
     }
-  
+
     output[f.name] = new dtype(numberOfPoints);
   }
-  
+
 
   // 2. Fill each typed array
   for (let i = 0; i < numberOfPoints; i++) {
@@ -248,7 +285,10 @@ export function parseLAS(buffer) {
     header: {
       versionMajor, versionMinor,
       pointDataFormat, pointDataRecordLength, numberOfPoints,
-      vlrs, evlrs
+      vlrs, evlrs,
+      extraFields: extraFields.map(f => ({
+        name: f.name, type: f.type, offset: f.offset
+      }))
     },
     points: output
   };

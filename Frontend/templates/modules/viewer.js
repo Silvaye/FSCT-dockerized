@@ -1,5 +1,6 @@
 // las_viewer.js
 import { parseLAS } from './las_parser.js';
+import { ColorScale } from './colorscale.js';
 import { mat4, vec3 } from 'https://cdn.skypack.dev/gl-matrix';
 
 function sphericalToCartesian(r, azimuth, elevation, pivot, out = vec3.create()) {
@@ -73,6 +74,8 @@ export function setupViewer({ dropdownId, refreshBtnId, renderBtnId, canvasId })
   const colBuf = gl.createBuffer();
 
   let pointCount = 0;
+  let currentPoints = null; // to store parsed point data
+
 
   // ——— Camera / orbit state ———
   let azimuth = 0.5;          // horizontal angle (yaw)
@@ -95,6 +98,27 @@ export function setupViewer({ dropdownId, refreshBtnId, renderBtnId, canvasId })
   let modelOffset = vec3.fromValues(0, 0, 0);  // translation in view plane
 
 
+  // Color scales for intensity
+  const intensityScale = new ColorScale("Intensity");
+  intensityScale.addStep(0.0, 0.0, 1.0, 0.0); // Green
+  intensityScale.addStep(0.5, 1.0, 1.0, 0.0); // Yellow
+  intensityScale.addStep(1.0, 1.0, 0.0, 0.0); // Red
+  intensityScale.generate();
+
+  // Classification color map
+  const CLASS_COLOR_MAP = {
+    0: [0.6, 0.6, 0.6],   // Unclassified / default gray
+    1: [0.9, 0.1, 0.1],   // Bright red
+    2: [0.1, 0.6, 0.1],   // Green
+    3: [0.1, 0.3, 0.8],   // Blue
+    4: [0.9, 0.6, 0.0],   // Orange
+    5: [0.6, 0.1, 0.8],   // Purple
+    6: [0.0, 0.7, 0.7],   // Cyan
+    7: [0.8, 0.2, 0.5],   // Pink
+    8: [0.5, 0.5, 0.1],   // Olive
+    9: [0.0, 0.0, 0.0],   // Black
+  };
+  // Add more classes as needed  
 
   let isDragging = false;
   let isPanning = false;
@@ -182,8 +206,8 @@ export function setupViewer({ dropdownId, refreshBtnId, renderBtnId, canvasId })
     const viewHeight = 2 * radius * Math.tan(fov / 2);
     const viewWidth = viewHeight * (canvas.width / canvas.height);
 
-    const moveX = dx / canvas.width * viewWidth;
-    const moveY = -dy / canvas.height * viewHeight;
+    const moveX = -dx / canvas.width * viewWidth;
+    const moveY = dy / canvas.height * viewHeight;
 
     // get camera vectors
     const eye = vec3.fromValues(
@@ -319,36 +343,57 @@ export function setupViewer({ dropdownId, refreshBtnId, renderBtnId, canvasId })
 
   renderLoop();
 
-  // ——— renderPointCloud stays the same ———
-  function renderPointCloud(points) {
+  function renderPointCloud(points, mode = 'rgb') {
     const n = points.X.length;
     pointCount = n;
     const positions = new Float32Array(n * 3);
     const colors = new Float32Array(n * 3);
 
-    // check for existence of colors, if not, set to white
-    const hasColor = points.red && points.green && points.blue;
+    const hasRGB = points.red && points.green && points.blue;
+
+    let minVal = Infinity, maxVal = -Infinity;
+    if (!(mode === 'rgb' || mode === 'intensity' || mode === 'classification')) {
+      for (let i = 0; i < n; i++) {
+        const val = points[mode][i];
+        if (val < minVal) minVal = val;
+        if (val > maxVal) maxVal = val;
+      }
+    }
 
     for (let i = 0; i < n; i++) {
-      positions[3 * i] = points.X[i];
+      positions[3 * i + 0] = points.X[i];
       positions[3 * i + 1] = points.Y[i];
       positions[3 * i + 2] = points.Z[i];
 
-      if (hasColor) {
-        colors[3 * i] = points.red[i] / 65535;
-        colors[3 * i + 1] = points.green[i] / 65535;
-        colors[3 * i + 2] = points.blue[i] / 65535;
-      } else {
-        colors[3 * i] = 1.0; // R
-        colors[3 * i + 1] = 1.0; // G
-        colors[3 * i + 2] = 1.0; // B
+      let r = 1, g = 1, b = 1; // default white
+
+      if (mode === 'rgb' && hasRGB) {
+        r = points.red[i] / 65535;
+        g = points.green[i] / 65535;
+        b = points.blue[i] / 65535;
+      } else if (mode === 'intensity' && points.intensity) {
+        const v = points.intensity[i];
+        [r, g, b] = intensityScale.getColor(v / 255);
+      } else if (mode === 'classification' && points.classification) {
+        [r, g, b] = CLASS_COLOR_MAP[points.classification[i]] || [0.5, 0.5, 0.5];
+      } else if (points[mode]) {
+        const val = points[mode][i];
+        const norm = (val - minVal) / (maxVal - minVal || 1);
+        [r, g, b] = intensityScale.getColor(norm);
       }
+
+      colors[3 * i + 0] = r;
+      colors[3 * i + 1] = g;
+      colors[3 * i + 2] = b;
     }
+
     gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
     gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, colBuf);
     gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
   }
+
+
 
   // ——— UI hooks ———
   refreshBtn.addEventListener('click', async () => {
@@ -374,15 +419,54 @@ export function setupViewer({ dropdownId, refreshBtnId, renderBtnId, canvasId })
 
   renderBtn.addEventListener('click', async () => {
     const path = dropdown.value;
+    const colorMode = document.getElementById('colorMode').value;
+    const colorSelect = document.getElementById('colorMode');
+    colorSelect.innerHTML = ''; // clear existing options
+
+    // Always include special modes
+    const defaultOptions = ['rgb', 'intensity', 'classification'];
+    for (const mode of defaultOptions) {
+      const opt = document.createElement('option');
+      opt.value = mode;
+      opt.textContent = mode[0].toUpperCase() + mode.slice(1);
+      colorSelect.appendChild(opt);
+    }
+
+    colorSelect.value = defaultOptions.includes(colorMode) ? colorMode : 'rgb';
+
     if (!path) return alert("Select a file first.");
     try {
       const resp = await fetch(`/${path}`);
       const buffer = await resp.arrayBuffer();
-      const { points } = parseLAS(buffer);
-      console.log(`Parsed ${points.X.length} points`);
-      renderPointCloud(points);
+      const { header, points } = parseLAS(buffer);
+      console.log(`Parsed ${points.X.length} points with mode ${colorMode}`);
+      console.log(header);
+      console.log(points);
+      currentPoints = points; // ✅ store for later use
+      // Then add numeric fields dynamically
+      if (currentPoints != null) {
+        for (const key of Object.keys(currentPoints)) {
+          if (typeof currentPoints[key][0] === 'number' && !defaultOptions.includes(key)) {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = `Field: ${key}`;
+            colorSelect.appendChild(opt);
+          }
+        }
+      }
+      renderPointCloud(points, colorMode);
     } catch (err) {
       alert("Render error: " + err.message);
     }
   });
+
+  document.getElementById('colorMode').addEventListener('change', () => {
+    if (currentPoints) {
+      const newMode = document.getElementById('colorMode').value;
+      renderPointCloud(currentPoints, newMode);
+    }
+  });
+
+
+
 }
