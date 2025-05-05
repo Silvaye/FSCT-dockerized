@@ -32,4 +32,4 @@ jobs:
           context: .
           file: .devcontainer/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/forest-tool:latest
+          tags: ghcr.io/silvaye/forest-tool:latest
